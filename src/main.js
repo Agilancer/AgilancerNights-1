@@ -28,7 +28,8 @@ camera.follow(player, room);
 window.game = { input, room, player, camera };
 
 let paused = false;
-let showDebug = true;
+// Tap the game screen to cycle: read-out -> read-out + hit box -> nothing.
+let debugMode = 0;
 let fps = 0;
 
 // Block page scrolling / pinch-zoom / double-tap zoom in iOS Safari.
@@ -36,8 +37,10 @@ document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: fal
 document.addEventListener('gesturestart', (e) => e.preventDefault());
 document.addEventListener('dblclick', (e) => e.preventDefault());
 
-// Tap the game screen to toggle the debug read-out.
-canvas.addEventListener('click', () => { showDebug = !showDebug; });
+canvas.addEventListener('click', () => {
+  debugMode = (debugMode + 1) % 3;
+  player.showHitbox = debugMode === 1;
+});
 document.addEventListener('visibilitychange', () => { if (document.hidden) paused = true; });
 
 function resize() {
@@ -66,13 +69,13 @@ function render() {
 
   // Overlays are drawn at native resolution so text stays sharp.
   const k = canvas.width / VIEW_W;
-  if (showDebug) {
+  if (debugMode !== 2) {
     const held = Object.keys(input.held).filter((a) => input.held[a]).join(' ');
     const lines = [
       `fps ${fps.toFixed(0)}`,
       `pos ${player.x.toFixed(1)}, ${player.y.toFixed(1)}`,
       `vel ${player.vx.toFixed(0)}, ${player.vy.toFixed(0)}`,
-      `ground ${player.onGround ? 'yes' : 'no'}`,
+      `ground ${player.onGround ? 'yes' : 'no'}  ${player.state}`,
       `input ${held || '-'}`,
     ];
     ctx.font = `${Math.round(7 * k)}px ui-monospace, Menlo, monospace`;

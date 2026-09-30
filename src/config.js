@@ -29,4 +29,15 @@ export const PHYSICS = {
   maxFallSpeed: 420,
   coyoteTime: 0.08,     // grace period to still jump after walking off a ledge
   jumpBuffer: 0.1,      // jump pressed slightly before landing still counts
+  slideSpeed: 260,      // down + jump on solid ground
+  slideTime: 0.4,
+};
+
+// Seconds per frame for each animation.
+export const ANIM = {
+  run: 0.075,
+  attack: 0.05,
+  cast: 0.06,
+  duck: 0.04,
+  land: 0.08,
 };
