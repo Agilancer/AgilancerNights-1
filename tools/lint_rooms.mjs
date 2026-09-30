@@ -10,6 +10,8 @@ import { ENEMY_TYPES } from '../src/enemies.js';
 
 const FLOOR = new Set(['statue', 'gargoyle', 'gargoyle_2', 'gargoyle_head', 'candelabra', 'clock', 'barrel', 'sack',
   'crate', 'crates', 'bookshelf', 'fireplace', 'statue_alcove', 'coffin_alcove', 'iron_fence', 'fence', 'balustrade', 'column']);
+// Falls must run from a ceiling to a floor.
+const FALL = new Set(['waterfall', 'waterfall_2', 'lavafall']);
 const HANG = new Set(['chandelier', 'chandelier_2', 'chains', 'banner_blue', 'banner_lion', 'banner_red', 'curtain', 'curtain_torn']);
 
 let problems = 0;
@@ -34,6 +36,11 @@ for (const [id, r] of Object.entries(ROOMS)) {
     }
     if (FLOOR.has(d.t)) {
       for (let x = d.x; x < d.x + s; x++) if (!'#C'.includes(at(x, d.y + s))) bad(id, `${tag} is not standing on the floor (below ${x},${d.y + s} is '${at(x, d.y + s)}')`);
+    }
+    if (FALL.has(d.t)) {
+      const col = (r.decor || []).filter((q) => q.t === d.t && q.x === d.x).map((q) => q.y);
+      if (!col.includes(d.y - 1) && at(d.x, d.y - 1) !== '#') bad(id, `${tag} fall does not start at a ceiling`);
+      if (!col.includes(d.y + 1) && at(d.x, d.y + 1) !== '#') bad(id, `${tag} fall does not end on a floor`);
     }
     if (HANG.has(d.t)) {
       for (let x = d.x; x < d.x + s; x++) if (at(x, d.y - 1) !== '#') bad(id, `${tag} is not hanging from a ceiling (above ${x},${d.y - 1} is '${at(x, d.y - 1)}')`);

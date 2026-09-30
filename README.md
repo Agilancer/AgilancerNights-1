@@ -1,135 +1,131 @@
 # Agilancer Nights
 
-A Symphony of the Night–style side-scrolling action RPG for iOS Safari, played in **landscape** with see-through touch controls over the game.
+A Castlevania: Symphony of the Night–style action RPG for iOS Safari, played in
+**landscape** with see-through touch controls over the game.
 
 ## Running
 
-The game uses ES modules, so it has to be served over HTTP (opening `index.html`
-directly as a file won't work):
+The game uses ES modules, so serve it over HTTP:
 
 ```sh
 python3 -m http.server 8000
-# then open http://<your-computer-ip>:8000 in Safari on the iPhone
+# then open http://<your-computer-ip>:8000 in Safari
 ```
 
-Any static host works too (e.g. GitHub Pages pointed at this repo's root).
-Tip: "Add to Home Screen" in Safari gives a full-screen, no-browser-chrome view.
+Any static host works (e.g. GitHub Pages). "Add to Home Screen" gives a full-screen view.
 
 ## Controls
 
 | Action | Touch | Keyboard |
 | --- | --- | --- |
-| Move | D-pad | Arrows / WASD |
-| Jump | JUMP | Space / Z |
-| Attack | ATK | X / J |
-| Magic | MAGIC | C / K |
-| Pause | ❚❚ | Enter / Esc / P |
-| Equipment menu | MENU | I / M / Tab |
-| Crouch | Down | Down |
-| Slide (on stone floor) | Down + JUMP | Down + Space |
-| Drop through wooden platform | Down + JUMP | Down + Space |
+| Move / crouch | D-pad | Arrows / WASD |
+| Jump (again in mid-air with the Leap Boots) | JUMP | Space / Z |
+| Attack (tap again during a swing for your left-hand weapon) | ATK | X / J |
+| Cast the equipped spell | MAGIC | C / K |
+| Sprint (Gale Greaves) | double-tap left / right | double-tap |
+| Super jump (Gravity Crown) | hold up + JUMP | Up + Space |
+| Slide / drop through a platform (hold down to keep falling) | down + JUMP | Down + Space |
+| Pause · Menu | ❚❚ · MENU | Enter · I / M / Tab |
 
-Tap the HP/MP bars (or press `) to cycle the debug view: off → read-out → read-out + hit boxes.
+## The castle
 
-## The castle (so far)
+150 rooms in 10 areas, each deeper, darker and stranger than the last:
 
-Seven rooms laid out on one world grid; walk (or jump / drop) through a gap in
-a room's outer wall to enter whichever room is on the other side.
+| Area | Rooms | Gate to enter | Bosses |
+| --- | --- | --- | --- |
+| Castle Gate | 7 | — | (Evil Knight guards the sword) |
+| Marble Gallery | 17 | — | Bone Colossus |
+| Outer Ramparts | 15 | double jump | Harpy Queen |
+| Royal Library | 16 | sprint | The Grand Lich, The Grimoire Wraith |
+| Catacombs | 17 | Mist Veil (iron grates) | Spider Matriarch, The Troll King |
+| Clockwork Spire | 15 | spike immunity | Minotaur Lord |
+| Drowned Cistern | 15 | super jump | The Drowned Siren |
+| Infernal Forge | 16 | lava immunity | The Demon Smith, Orc Warlord |
+| Halls of Flesh | 17 | Crimson Key | The Flesh Abomination, Fenrir |
+| The Inverted Abyss | 15 | Abyss Key | The Void Knight, **The Nightlord** |
+
+Each boss drops the relic or key that opens the next area, so you backtrack
+through old areas to reach new ones, and to reach treasure you could see but not
+touch before. Deeper areas bring darkness (the Spirit Lantern pushes it back),
+rain and lightning, dripping water and blood, watching eyes, writing on the walls,
+a breathing red tint and a rippling void.
+
+Boss arenas seal until the boss falls. Bosses are scaled-up, palette-swapped
+monsters with aura, special attacks (quakes, projectile rains, novas, charges,
+summons, teleports, beams) and an enraged second phase.
+
+Cracked walls hide 18 secret rooms: attack them to break through. 124 treasure
+chests hold equipment, spells, Life / Mana Vessels and legendary weapons. The
+rarest are in secret rooms and ability-locked pockets. Enemies drop gear, and
+HP / MP orbs.
+
+## Equipment
+
+- **202 weapons** in 16 classes (daggers, swords, longswords, greatswords, rapiers,
+  katanas, axes, maces, warhammers, spears, lances, scythes, claws, flails,
+  staves, whips) across 10 materials. Each one's swing is built from its own mix
+  of motion (slash, rising, two-strike, overhead, thrust + lunge, flurry, spin,
+  ground smash + shockwave, reap, whip lash), arc, speed, reach, blade shape,
+  colours and elemental trail. Twelve named whips include the **Thorn Whip** and
+  **Flame Whip**. Eighteen legendaries fire beams (crescents, fireballs, shards,
+  holy crosses...). The **Requiem of Agilancer**, hidden in the deepest secret
+  room, sweeps a colossal energy blade across the whole screen.
+- **Elements**: fire, ice, lightning, poison, holy, dark and blood. They inflict
+  burn, freeze, shock, poison, curse or bleed. Each enemy family has weaknesses
+  and immunities (holy destroys the undead; demons laugh at fire).
+- **40 armor pieces** (20 head, 20 body) with DEF and resistances.
+- **264 charms** (3 slots): attack, defense, HP, MP, regeneration, luck, XP,
+  critical hits, speed, jump, life steal, spell power, thorns, resistances...
+- **8 spells**: Spirit Bolt, Hellfire Orb, Ice Lance, Holy Cross, Thunder Call,
+  Soul Drain, Bat Swarm, Starfall.
+- **10 relics** fill the passive slots and are always active: Leap Boots (double
+  jump), Gale Greaves (sprint), Spirit Lantern, Mist Veil, Saint's Soles, Gravity
+  Crown, Salamander Scale, Vampire Fang, Seer's Eye (reveals the map), Echo Heart
+  (survive one killing blow per room).
+- **Levels** add weapon / spell damage, max HP and max MP.
+
+The **menu** has Equip (slots + everything that fits, with ▲/▼ comparisons),
+Items (by category), Relics, and a **Map** (drag to pan, +/− to zoom).
+
+## Code layout
 
 ```
-                         [4 Lava Gallery]──[5 Ruined Chapel]
-               [3 Clock Tower]                    │
-[1 Entrance]──[2 Great Corridor]──🔒──[7 Sword    [6 Crypt Vault]
-                                        Sanctum]      (Iron Key)
+src/main.js          boot, title, loop, rendering, lighting, atmosphere, HUD
+src/title.js         animated title screen
+src/world.js         rooms, transitions, combat, loot, spells, bosses, saving
+src/room.js          tiles, themes, backgrounds, chests, breakables, seals
+src/player.js        movement, abilities, weapon swings
+src/weaponFx.js      weapon poses, drawing and hit boxes
+src/enemies.js       enemy types, AI, status effects, projectile patterns
+src/boss.js          the 14 bosses
+src/palette.js       runtime palette swaps for sprites
+src/zones.js         areas: themes, darkness, effects, enemy rosters
+src/items.js         item registry, icons       src/data/*  item tables
+src/stats.js         equipment bonuses          src/loot.js  drop tables
+src/menu.js          Equip / Items / Relics / Map
+src/rooms.js         the 7 hand-built rooms (+ the generated castle)
+src/castle.js        generated: the other 143 rooms
+tools/               asset builders, castle generator, checkers
 ```
 
-The Great Corridor's far door is locked. Climb the tower, cross the lava on
-the moving platforms, descend the chapel to find the **Iron Key** in the
-vault, then backtrack to open the door and claim the **Short Sword**. Spikes and
-lava send you back to your last safe footing. Progress is saved automatically
-in the browser (MENU → New Game to start over).
-
-## Combat and stats
-
-- **HP / MP / XP** bars sit top-left with your level. You start with 100 HP and 100 MP; MP refills slowly.
-- **Weapons:** a **Knife** waits on a pedestal next to where you start; equip it from MENU. The
-  Short Sword is behind the locked door. Your weapon's hit box only exists during the swing.
-- **Magic:** you begin with the **Spirit Bolt** spell equipped (8 MP, fires straight ahead).
-- **Enemies** (20 types in `src/enemies.js`) walk, attack and die with their own animations.
-  Melee enemies hurt you only when their weapon connects (plus a little for bumping into them);
-  ranged enemies fire fixed patterns in the direction they face — arcing arrows and webs,
-  wavy orbs, 3-way spreads, bouncing fireballs, radial rings — never aimed straight at you.
-  Enemies respawn when you re-enter a room.
-- **XP and levels:** kills give XP. Each level adds 15% weapon damage (10% spell), +12 max HP and
-  +6 max MP, and refills both.
-- Spikes and lava hurt and return you to safe footing. At 0 HP you revive at the last doorway
-  you came through, fully healed, keeping your XP and items.
-
-## Equipment menu
-
-## Layout
-
-```
-index.html            page, on-screen controls, menu markup
-css/style.css         portrait layout, controls and menu styling
-src/main.js           boot, fixed 60 Hz loop, rendering, overlays
-src/config.js         resolution, tile size, movement tuning
-src/input.js          unified input state (held / pressed / released) + keyboard
-src/touchControls.js  multi-touch D-pad and buttons
-src/world.js          current room, room transitions, hazards, pickups, doors, save
-src/rooms.js          the castle: room maps, decorations, items, moving platforms
-src/room.js           tile collision, themes, drawing, moving platforms
-src/player.js         player physics, collision, animation, stats, sword swing
-src/enemies.js        enemy types, AI, weapon hit boxes, projectile patterns
-src/enemySprites.js   generated: enemy frame data
-src/tileTypes.js      collision constants
-src/items.js          item database, equipment slots, pixel icons
-src/menu.js           equipment / inventory screen
-src/assets.js         tile atlas loading + drawing
-src/tileIndex.js      generated: tile name -> atlas index
-src/playerSprites.js  generated: player frame data
-assets/               generated atlases (+ source/ originals)
-tools/                asset build scripts and level checkers
-```
-
-## Editing rooms
-
-Rooms live in `src/rooms.js` as text grids of 32x32 tiles: `#` wall, `=` one-way
-platform, `^` spikes, `L` lava, `C` crate, `D` locked door, `.` empty. Each room
-has a world position (`x`, `y` in tiles); rooms that touch line up their wall
-gaps. Decorations use tile names from `src/tileIndex.js`.
-
-Physics limits to design around: a full jump rises ~2.6 tiles (so ledges up to
-2 tiles higher are reachable) and clears about 3-4 tiles of gap.
-
-After editing, check every route is still possible:
+## Tools
 
 ```sh
-node tools/check_rooms.mjs          # all rooms (add a room id and --map to see reachable spots)
-node tools/bot_gallery.mjs          # plays the moving-platform room both ways
-node tools/lint_rooms.mjs           # floor props on floors, hanging props under ceilings, enemies on ground
+node tools/gen_castle.mjs [--seed N]   # rebuild src/castle.js (~8 min); every room is
+                                       # proven playable with the real physics
+node tools/check_castle.mjs            # doors line up, no overlaps, all rooms connected
+node tools/lint_rooms.mjs              # props on floors, hanging props under ceilings
+node tools/check_rooms.mjs             # routes through the hand-built rooms
+node tools/bot_gallery.mjs             # plays the moving-platform room both ways
+python3 tools/build_tiles.py           # tile atlases from assets/source
+python3 tools/build_player_sprites.py  # player atlas
+python3 tools/build_enemy_sprites.py   # enemy atlas
 ```
 
-Free-standing one-way platforms (not built into a wall) are drawn hanging from
-chains up to the ceiling automatically.
-
-## Tiles
-
-`tools/build_tiles.py` cuts the two 50-tile sheets in `assets/source/` into
-`assets/tiles.png` (32px) and `assets/tiles_big.png` (64px, for 2x2 props), and
-makes the dark backdrop of prop tiles (banners, candles, platforms...)
-transparent.
-
-## Player sprites
-
-`tools/build_player_sprites.py` reads `assets/source/player_sheet.png`, cuts
-out each frame (the sheet has a transparent background), scales it to game
-size (`SCALE` in the script) and writes `assets/player.png` +
-`src/playerSprites.js`. Frames face right and are mirrored in-game for left.
-
-```sh
-pip install pillow numpy scipy
-python3 tools/build_player_sprites.py
-python3 tools/build_tiles.py
-python3 tools/build_enemy_sprites.py   # --debug writes frame boxes over the sheets
-```
+The generator lays rooms out on a grid of 20×10-tile cells. It carves floors,
+doorways, platform stacks, pits, blocks, ledges, gates, pockets and secret walls,
+then uses `tools/solver.mjs` to run the actual player physics through run, jump,
+double-jump, sprint and super-jump manoeuvres. It checks that every door can be
+reached from every other door with the abilities you have in that area, that
+gates can't be bypassed without their ability, and that locked pockets really
+need theirs. Any room that fails is rebuilt.

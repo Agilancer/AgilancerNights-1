@@ -1,6 +1,28 @@
 import { TILE } from './config.js';
-import { EMPTY, SOLID, ONE_WAY } from './tileTypes.js';
+import { EMPTY, ONE_WAY, isWall } from './tileTypes.js';
 import { ENEMY_ATLAS, ENEMY_FRAMES } from './enemySprites.js';
+import { paletteAtlas } from './palette.js';
+import { AFFINITY } from './data/elements.js';
+
+// Element families (see AFFINITY): what each enemy is weak or immune to.
+export const FAMILY = {
+  zombie: 'undead', skeleton: 'undead', skeleton_archer: 'undead', lich: 'undead',
+  goblin: 'brute', orc: 'brute', orc_brute: 'brute', troll: 'brute', minotaur: 'beast',
+  evil_knight: 'knight', demon: 'demon', wolf: 'beast', harpy: 'beast',
+  spider: 'bug', giant_spider: 'bug', slime: 'slime',
+  dark_wizard: 'arcane', goblin_shaman: 'arcane', banshee: 'ghost', wraith: 'ghost',
+};
+
+// Status effects inflicted by elements: seconds, and damage per second as a
+// fraction of max HP (min 1).
+const STATUS = {
+  burn:   { time: 3, dot: 0.02, color: '#ff8a30' },
+  poison: { time: 5, dot: 0.015, color: '#8ae044' },
+  bleed:  { time: 3, dot: 0.03, color: '#ff3a4a' },
+  freeze: { time: 2, slow: 0.35, color: '#9ae4ff' },
+  shock:  { time: 0.5, stun: true, color: '#ffec60' },
+  curse:  { time: 4, vuln: 0.3, color: '#a070e0' },
+};
 
 const atlas = typeof Image !== 'undefined' ? new Image() : null;
 if (atlas) atlas.src = ENEMY_ATLAS;
@@ -41,7 +63,7 @@ export const ENEMY_TYPES = {
 // enemy faces: arcs, waves, spreads, rings.
 export class Projectile {
   constructor(o) {
-    Object.assign(this, { vx: 0, vy: 0, g: 0, r: 4, life: 4, t: 0, wave: 0, freq: 0, bounces: 0, owner: 'enemy', dead: false }, o);
+    Object.assign(this, { vx: 0, vy: 0, g: 0, r: 4, life: 4, t: 0, wave: 0, freq: 0, bounces: 0, owner: 'enemy', element: null, dead: false }, o);
     this.baseY = this.y;
   }
 
@@ -60,7 +82,7 @@ export class Projectile {
     }
     const tx = Math.floor(this.x / TILE), ty = Math.floor(this.y / TILE);
     if (tx < 0 || ty < 0 || tx >= room.cols || ty >= room.rows) { this.dead = true; return; }
-    if (room.get(tx, ty) === SOLID && !this.ghost) {
+    if (isWall(room.get(tx, ty)) && !this.ghost) {
       if (this.bounces > 0 && this.vy > 0) {
         this.bounces--;
         this.y = ty * TILE - 1;
@@ -101,6 +123,30 @@ export class Projectile {
       case 'ring': glow('rgba(140,200,255,0.7)', 8); dot('#e0f4ff', 2.5); break;
       case 'wisp': glow('rgba(110,120,255,0.75)', 8); dot('#d0d8ff', 2); break;
       case 'spirit': glow('rgba(180,220,255,0.85)', 11); dot('#ffffff', 3); break;
+      case 'bone':
+        ctx.save(); ctx.translate(x, y); ctx.rotate(this.t * 12);
+        ctx.fillStyle = '#efe6d0'; ctx.fillRect(-5, -1, 10, 2); ctx.fillRect(-6, -2, 2, 4); ctx.fillRect(4, -2, 2, 4);
+        ctx.restore(); break;
+      case 'feather':
+        ctx.save(); ctx.translate(x, y); ctx.rotate(Math.atan2(this.vy, this.vx));
+        ctx.fillStyle = '#c8c070'; ctx.fillRect(-6, -1, 10, 2); ctx.fillStyle = '#fff6b0'; ctx.fillRect(2, -1.5, 3, 3); ctx.restore(); break;
+      case 'star': glow('rgba(255,80,80,0.8)', 10); dot('#ffd0d0', 3); break;
+      case 'wave': {
+        const g = ctx.createLinearGradient(x, y - 14, x, y + 4);
+        g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, this.color || 'rgba(255,200,120,0.9)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y, this.r, 14, 0, Math.PI, 0); ctx.fill(); break;
+      }
+      case 'beam': glow(this.color || 'rgba(190,120,255,0.8)', 16); dot('#ffffff', 5); break;
+      case 'drop': dot('#9a0a1a', 2.5); break;
+      case 'cross':
+        glow('rgba(255,240,160,0.8)', 12);
+        ctx.save(); ctx.translate(x, y); ctx.rotate(this.t * 14);
+        ctx.fillStyle = '#fff4c0'; ctx.fillRect(-6, -1.5, 12, 3); ctx.fillRect(-1.5, -6, 3, 12); ctx.restore(); break;
+      case 'bat':
+        ctx.fillStyle = '#2a1030';
+        ctx.fillRect(x - 1.5, y - 1.5, 3, 3);
+        ctx.fillRect(x - 5, y - 1 - Math.sin(this.t * 30) * 2, 4, 1.5); ctx.fillRect(x + 1, y - 1 - Math.sin(this.t * 30) * 2, 4, 1.5);
+        ctx.fillStyle = '#ff4060'; ctx.fillRect(x - 1, y - 1, 1, 1); ctx.fillRect(x + 0.5, y - 1, 1, 1); break;
       default: dot('#fff', 3);
     }
   }
@@ -130,21 +176,31 @@ export function firePattern(pattern, x, y, f, dmg) {
 export class Enemy {
   // def: { t: type name, x: tile column, y: floor row (walkers) or hover row (flyers) }
   constructor(def) {
+    this.def = def;
     this.kind = def.t;
     this.type = ENEMY_TYPES[def.t];
     this.frames = ENEMY_FRAMES[def.t];
+    this.family = FAMILY[def.t];
+    this.variant = def.v || null;   // palette swap
+    this.scale = def.scale || 1;    // bosses are drawn (and collide) bigger
+    const m = def.m || 1;           // zone difficulty multiplier
+    this.maxHp = Math.round(this.type.hp * m);
+    this.atkDmg = Math.round(this.type.atk * (1 + (m - 1) * 0.55));
+    this.touchDmg = Math.round(this.type.touch * (1 + (m - 1) * 0.55));
+    this.xp = Math.round(this.type.xp * m * 1.1);
+    this.status = {};
     const walk = this.frames.walk;
     const fh = Math.max(...walk.map((f) => f.h));
     const fw = walk.reduce((s, f) => s + f.w, 0) / walk.length;
-    this.w = def.w || Math.max(10, Math.min(34, Math.round(fw * 0.5)));
-    this.h = def.h || Math.max(12, fh - 2);
+    this.w = Math.round((def.w || Math.max(10, Math.min(34, Math.round(fw * 0.5)))) * this.scale);
+    this.h = Math.round((def.h || Math.max(12, fh - 2)) * this.scale);
     this.air = this.type.ai === 'flyer' || this.type.ai === 'floater';
     this.x = def.x * TILE + TILE / 2 - this.w / 2;
     this.y = this.air ? def.y * TILE + TILE / 2 - this.h / 2 : def.y * TILE - this.h;
     this.homeX = this.x; this.homeY = this.y;
     this.vx = 0; this.vy = 0;
     this.facing = def.face || -1;
-    this.hp = this.type.hp;
+    this.hp = this.maxHp;
     this.state = 'walk';
     this.t = Math.random() * 3;
     this.stateT = 0;
@@ -164,22 +220,57 @@ export class Enemy {
 
   attackTime() { return this.frames.attack.length * this.type.fps.attack; }
 
-  // Take a hit. Returns true if this killed us.
-  damage(n, fromX) {
-    if (this.dead || this.invuln > 0) return false;
-    this.hp -= n;
-    this.invuln = 0.18;
+  // How much of an element (or 'physical') this enemy takes.
+  affinity(element) {
+    const a = AFFINITY[this.family] || {};
+    return a[element || 'physical'] ?? 1;
+  }
+
+  // Take a hit. Returns the damage actually dealt (0 = immune / ignored).
+  damage(n, fromX, element = null, status = null) {
+    if (this.dead || this.invuln > 0) return -1;
+    let mult = this.affinity(element);
+    if (this.status.curse) mult *= 1 + STATUS.curse.vuln;
+    const dealt = Math.round(n * mult);
+    this.hp -= dealt;
+    this.invuln = 0.14;
     this.hpShow = 2;
-    if (!this.type.heavy && !this.air) {
+    if (status && mult > 0 && Math.random() < 0.35) this.inflict(status);
+    if (!this.type.heavy && !this.air && !this.boss) {
       this.knock = 0.18;
       this.vx = (this.x + this.w / 2 < fromX ? -1 : 1) * 90;
     }
-    if (this.hp <= 0) {
-      this.setState('die');
-      this.hitbox = null;
-      return true;
+    if (this.hp <= 0) this.kill();
+    return dealt;
+  }
+
+  kill() {
+    this.hp = 0;
+    this.setState('die');
+    this.hitbox = null;
+  }
+
+  inflict(kind) {
+    if (!STATUS[kind]) return;
+    this.status[kind] = STATUS[kind].time;
+  }
+
+  // Burning, poison and bleeding tick; frozen enemies are slow, shocked ones stunned.
+  tickStatus(dt) {
+    let slow = 1, stun = false;
+    for (const k of Object.keys(this.status)) {
+      const S = STATUS[k];
+      this.status[k] -= dt;
+      if (S.dot) {
+        this.dotAcc = (this.dotAcc || 0) + Math.max(1, this.maxHp * S.dot) * dt;
+        if (this.dotAcc >= 1) { const d = Math.floor(this.dotAcc); this.dotAcc -= d; this.hp -= d; this.hpShow = 1; }
+      }
+      if (S.slow) slow = S.slow;
+      if (S.stun) stun = true;
+      if (this.status[k] <= 0) delete this.status[k];
     }
-    return false;
+    if (this.hp <= 0 && !this.dead) this.kill();
+    return { slow, stun };
   }
 
   update(dt, world) {
@@ -187,6 +278,9 @@ export class Enemy {
     this.t += dt; this.stateT += dt;
     this.cooldown -= dt; this.invuln -= dt; this.knock -= dt; this.hpShow -= dt;
     this.hitbox = null;
+    const st = this.tickStatus(dt);
+    if (!this.dead && st.stun) { this.vx = 0; if (!this.air) this.physics(dt, room, 0); return; }
+    if (st.slow < 1) dt *= st.slow;
     if (this.dead) {
       if (!this.air) this.physics(dt, room, 0);
       if (this.stateT > this.frames.die.length * T.fps.die + 0.4) this.remove = true;
@@ -196,8 +290,8 @@ export class Enemy {
     const dx = p.x + p.w / 2 - cx, dy = p.y + p.h / 2 - cy;
     // Walkers only notice you at about their own height; shooters (who lob
     // arcs up onto ledges) and fliers look further up and down.
-    const sightY = this.air ? T.sight : T.attack.kind === 'shot' ? 120 : 56;
-    const sees = !world.playerDead && Math.abs(dx) < T.sight && Math.abs(dy) < sightY;
+    const sightY = this.boss ? 400 : this.air ? T.sight : T.attack.kind === 'shot' ? 120 : 56;
+    const sees = !world.playerDead && Math.abs(dx) < (this.boss ? 2000 : T.sight) && Math.abs(dy) < sightY;
     const ai = T.ai;
     if (ai === 'flyer') return this.fly(dt, world, dx, dy, sees);
     if (ai === 'floater') return this.float(dt, world, dx, dy, sees);
@@ -216,7 +310,7 @@ export class Enemy {
     } else if (sees) {
       this.facing = dx > 0 ? 1 : -1;
       const a = T.attack;
-      const inRange = Math.abs(dx) < a.range && (a.kind !== 'melee' || Math.abs(dy) < 36);
+      const inRange = Math.abs(dx) < a.range * this.scale && (a.kind !== 'melee' || Math.abs(dy) < 36 * this.scale);
       if (inRange && this.cooldown <= 0 && this.onGround) {
         this.setState('attack');
         if (a.kind === 'lunge') { this.vx = this.facing * 210; this.vy = -200; this.onGround = false; want = null; }
@@ -260,7 +354,8 @@ export class Enemy {
     const f = this.facing;
     if (a.kind === 'melee') {
       if (frame >= a.hit[0] && frame <= a.hit[1]) {
-        this.hitbox = { x: f > 0 ? this.x + this.w - 4 : this.x - a.reach + 4, y: this.y + this.h * 0.1, w: a.reach, h: this.h * 0.7 };
+        const reach = a.reach * this.scale;
+        this.hitbox = { x: f > 0 ? this.x + this.w - 4 : this.x - reach + 4, y: this.y + this.h * 0.1, w: reach, h: this.h * 0.7 };
       }
     } else if (a.kind === 'lunge' || a.kind === 'swoop') {
       this.hitbox = { x: this.x - 2, y: this.y, w: this.w + 4, h: this.h };
@@ -268,7 +363,7 @@ export class Enemy {
       this.fired = true;
       const mx = f > 0 ? this.x + this.w + 2 : this.x - 2;
       const my = this.y + this.h * (this.kind.includes('spider') || this.kind === 'slime' ? 0.45 : 0.35);
-      for (const pr of firePattern(a.pattern, mx, my, f, this.type.atk)) world.projectiles.push(pr);
+      for (const pr of firePattern(a.pattern, mx, my, f, this.atkDmg)) world.projectiles.push(pr);
     }
   }
 
@@ -277,7 +372,7 @@ export class Enemy {
     const col = Math.floor(front / TILE);
     const foot = Math.floor((this.y + this.h + 2) / TILE);
     const mid = Math.floor((this.y + this.h - 4) / TILE);
-    if (room.get(col, mid) === SOLID) return true;
+    if (isWall(room.get(col, mid))) return true;
     if (room.get(col, foot) === EMPTY) return true;
     if (room.kind(col, foot) === 'spikes' || room.kind(col, foot) === 'lava') return true;
     return col < 0 || col >= room.cols;
@@ -292,7 +387,7 @@ export class Enemy {
     const top = Math.floor(this.y / TILE), bot = Math.floor((this.y + this.h - 1) / TILE);
     const col = this.vx > 0 ? Math.floor((this.x + this.w) / TILE) : Math.floor(this.x / TILE);
     for (let ty = top; ty <= bot; ty++) {
-      if (room.get(col, ty) === SOLID) {
+      if (isWall(room.get(col, ty))) {
         this.x = this.vx > 0 ? col * TILE - this.w - 0.01 : (col + 1) * TILE + 0.01;
         this.vx = 0;
         if (this.state !== 'attack') this.facing = -this.facing;
@@ -308,7 +403,7 @@ export class Enemy {
       const row = Math.floor((this.y + this.h) / TILE);
       for (let tx = l; tx <= r; tx++) {
         const c = room.get(tx, row);
-        if (c === SOLID || (c === ONE_WAY && prevBottom <= row * TILE + 0.5)) {
+        if (isWall(c) || (c === ONE_WAY && prevBottom <= row * TILE + 0.5)) {
           this.y = row * TILE - this.h;
           this.vy = 0;
           this.onGround = true;
@@ -317,7 +412,7 @@ export class Enemy {
       }
     } else if (this.vy < 0) {
       const row = Math.floor(this.y / TILE);
-      for (let tx = l; tx <= r; tx++) if (room.get(tx, row) === SOLID) { this.y = (row + 1) * TILE; this.vy = 0; break; }
+      for (let tx = l; tx <= r; tx++) if (isWall(room.get(tx, row))) { this.y = (row + 1) * TILE; this.vy = 0; break; }
     }
   }
 
@@ -377,7 +472,7 @@ export class Enemy {
       if (!solid) return false;
       for (let ty = Math.floor(y / TILE); ty <= Math.floor((y + this.h - 1) / TILE); ty++)
         for (let tx = Math.floor(x / TILE); tx <= Math.floor((x + this.w - 1) / TILE); tx++)
-          if (room.get(tx, ty) === SOLID) return true;
+          if (isWall(room.get(tx, ty))) return true;
       return false;
     };
     if (!hits(nx, this.y)) this.x = nx; else this.vx = 0;
@@ -398,6 +493,8 @@ export class Enemy {
     return F.walk[moving ? Math.floor(this.t / fps.walk) % F.walk.length : 0];
   }
 
+  drawAura() {}
+
   draw(ctx, cam, showBoxes) {
     if (!atlas || !atlas.complete || !atlas.naturalWidth) return;
     const f = this.frame();
@@ -407,14 +504,23 @@ export class Enemy {
     else if (this.invuln > 0 && Math.floor(this.invuln * 30) % 2) ctx.globalAlpha = 0.35;
     else if (this.type.ai === 'floater') ctx.globalAlpha = 0.85;
     ctx.translate(bx, by);
-    if (this.facing < 0) ctx.scale(-1, 1);
-    ctx.drawImage(atlas, f.x, f.y, f.w, f.h, -f.ax, -f.ay, f.w, f.h);
+    ctx.scale(this.facing < 0 ? -this.scale : this.scale, this.scale);
+    const img = paletteAtlas(atlas, this.variant);
+    if (this.boss) this.drawAura(ctx, img, f);
+    ctx.drawImage(img, f.x, f.y, f.w, f.h, -f.ax, -f.ay, f.w, f.h);
     ctx.restore();
+    // Status sparkles.
+    for (const k of Object.keys(this.status)) {
+      if (Math.random() < 0.3) {
+        ctx.fillStyle = STATUS[k].color;
+        ctx.fillRect(bx - this.w / 2 + Math.random() * this.w, by - Math.random() * this.h, 1.5, 1.5);
+      }
+    }
     // Small health bar after being hit.
-    if (this.hpShow > 0 && !this.dead) {
+    if (this.hpShow > 0 && !this.dead && !this.boss) {
       const w = Math.max(16, this.w), x = bx - w / 2, y = by - this.h - 6;
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x - 1, y - 1, w + 2, 4);
-      ctx.fillStyle = '#d23a3a'; ctx.fillRect(x, y, w * Math.max(0, this.hp / this.type.hp), 2);
+      ctx.fillStyle = '#d23a3a'; ctx.fillRect(x, y, w * Math.max(0, this.hp / this.maxHp), 2);
     }
     if (showBoxes) {
       ctx.strokeStyle = 'rgba(255,200,60,0.9)'; ctx.lineWidth = 1;

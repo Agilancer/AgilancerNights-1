@@ -128,7 +128,7 @@ const CHECKS = [
   { room: 'corridor', from: 'entrance', starts: [[1, 8]], need: ['top', 'door'] },
   { room: 'corridor', from: 'tower', starts: [[29, 1]], need: ['left', 'door'] },
   { room: 'corridor', from: 'tower (door open)', starts: [[29, 1]], need: ['right'], flags: { sanctum_door: true } },
-  { room: 'sanctum', from: 'corridor', starts: [[1, 8]], need: ['item:short_sword', 'left'] },
+  { room: 'sanctum', from: 'corridor', starts: [[1, 8]], need: ['item:short_sword', 'left', 'right'] },
   { room: 'tower', from: 'corridor', starts: [[7, 29]], need: ['right'] },
   { room: 'tower', from: 'gallery', starts: [[16, 4]], need: ['bottom'] },
   { room: 'gallery', from: 'tower', starts: [[2, 4]], need: ['right'] },

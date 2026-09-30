@@ -8,6 +8,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#000000">
   <title>Agilancer Nights</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -38,29 +40,62 @@
       </div>
     </div>
 
-    <div id="menu" class="hidden" role="dialog" aria-label="Equipment">
+    <div id="menu" class="hidden" role="dialog" aria-label="Menu">
       <div class="menu-panel">
         <header class="menu-head">
-          <h1>Equipment</h1>
+          <nav class="tabs">
+            <button class="tab on" type="button" data-tab="equip">Equip</button>
+            <button class="tab" type="button" data-tab="items">Items</button>
+            <button class="tab" type="button" data-tab="relics">Relics</button>
+            <button class="tab" type="button" data-tab="map">Map</button>
+          </nav>
           <div class="menu-stats"></div>
           <button id="menu-close" type="button" aria-label="Close">&#10005;</button>
         </header>
-        <div class="menu-body">
-          <div class="menu-col menu-scroll">
-            <div class="menu-slots"></div>
-            <h2>Passive Equipment</h2>
-            <div class="menu-passives"></div>
-          </div>
+
+        <section class="page" data-page="equip">
+          <div class="menu-col menu-scroll"><div class="menu-slots"></div></div>
           <div class="menu-col menu-right">
-            <div class="menu-scroll menu-items">
-              <h2>Items</h2>
-              <ul class="menu-inventory"></ul>
-              <button id="menu-reset" type="button">New Game</button>
-            </div>
+            <h2 class="equip-title"></h2>
+            <ul class="menu-scroll list equip-list"></ul>
             <div class="menu-detail"></div>
           </div>
-        </div>
+        </section>
+
+        <section class="page hidden" data-page="items">
+          <div class="menu-col menu-right wide">
+            <div class="item-filters"></div>
+            <ul class="menu-scroll list item-list"></ul>
+            <div class="item-count-total"></div>
+          </div>
+          <div class="menu-col menu-right"><div class="menu-detail tall"></div></div>
+        </section>
+
+        <section class="page hidden" data-page="relics">
+          <div class="menu-col menu-scroll full">
+            <div class="relic-grid"></div>
+            <p class="relic-count"></p>
+            <button id="menu-quit" type="button">Quit to Title</button>
+          </div>
+        </section>
+
+        <section class="page hidden" data-page="map">
+          <div class="menu-col full map-wrap">
+            <canvas id="map-canvas"></canvas>
+            <div class="map-tools">
+              <button id="map-in" type="button">+</button>
+              <button id="map-out" type="button">&minus;</button>
+              <button id="map-here" type="button">&#9678;</button>
+            </div>
+          </div>
+        </section>
       </div>
+    </div>
+
+    <div id="title-menu" class="hidden">
+      <button id="title-continue" type="button">Continue</button>
+      <button id="title-new" type="button">New Game</button>
+      <p class="title-hint">Best played full screen: Share &rarr; Add to Home Screen.</p>
     </div>
 
     <div id="rotate">Please rotate your device to landscape.</div>

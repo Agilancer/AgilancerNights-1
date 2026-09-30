@@ -7,6 +7,8 @@
 // enemies: {t: type from src/enemies.js, x, y} with y = the floor row they stand on
 //   (flyers / ghosts: the row they hover in). They respawn whenever you re-enter.
 
+import { CASTLE_ROOMS } from './castle.js';
+
 export const START = {"room": "entrance", "x": 3, "y": 12};
 
 export const ROOMS = {
@@ -113,8 +115,8 @@ export const ROOMS = {
       '#..............#',
       '#..............#',
       '#..............#',
-      '...............#',
-      '......####.....#',
+      '................',
+      '......####......',
       '################',
       '################',
     ],
@@ -335,3 +337,6 @@ export const ROOMS = {
     ],
   },
 };
+
+// The generated castle beyond the Sword Sanctum (tools/gen_castle.mjs).
+Object.assign(ROOMS, CASTLE_ROOMS);
