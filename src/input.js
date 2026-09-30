@@ -1,7 +1,7 @@
 // Unified input state. Keyboard and touch both feed "sources"; the game reads
 // `held`, `pressed` (went down this step) and `released` (went up this step).
 
-export const ACTIONS = ['left', 'right', 'up', 'down', 'jump', 'attack', 'magic', 'pause'];
+export const ACTIONS = ['left', 'right', 'up', 'down', 'jump', 'attack', 'magic', 'pause', 'menu'];
 
 export class Input {
   constructor() {
@@ -47,6 +47,7 @@ const KEYMAP = {
   KeyX: 'attack', KeyJ: 'attack',
   KeyC: 'magic', KeyK: 'magic',
   Enter: 'pause', Escape: 'pause', KeyP: 'pause',
+  KeyI: 'menu', KeyM: 'menu', Tab: 'menu',
 };
 
 // Keyboard support for desktop testing.

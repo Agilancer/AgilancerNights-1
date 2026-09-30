@@ -17,7 +17,10 @@
     </div>
 
     <div id="controls">
-      <div id="pause" class="btn small" data-action="pause"><span>&#10074;&#10074;</span></div>
+      <div id="system">
+        <div id="pause" class="btn small" data-action="pause"><span>&#10074;&#10074;</span></div>
+        <div id="menu-btn" class="btn small" data-action="menu"><span>MENU</span></div>
+      </div>
 
       <div id="dpad">
         <div class="arm up"></div>
@@ -31,6 +34,25 @@
         <div id="btn-magic" class="btn" data-action="magic"><span>MAGIC</span></div>
         <div id="btn-attack" class="btn" data-action="attack"><span>ATK</span></div>
         <div id="btn-jump" class="btn" data-action="jump"><span>JUMP</span></div>
+      </div>
+    </div>
+
+    <div id="menu" class="hidden" role="dialog" aria-label="Equipment">
+      <div class="menu-panel">
+        <header class="menu-head">
+          <h1>Equipment</h1>
+          <button id="menu-close" type="button" aria-label="Close">&#10005;</button>
+        </header>
+        <div class="menu-scroll">
+          <div class="menu-stats"></div>
+          <div class="menu-slots"></div>
+          <h2>Passive Equipment</h2>
+          <div class="menu-passives"></div>
+          <h2>Items</h2>
+          <ul class="menu-inventory"></ul>
+          <button id="menu-reset" type="button">New Game</button>
+        </div>
+        <div class="menu-detail"></div>
       </div>
     </div>
 

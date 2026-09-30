@@ -5,7 +5,7 @@
 export const VIEW_W = 320;
 export const VIEW_H = 240;
 
-export const TILE = 16;
+export const TILE = 32;
 
 // Fixed simulation step (60 Hz, like the original hardware).
 export const STEP = 1 / 60;
@@ -18,15 +18,15 @@ export const PLAYER = {
 };
 
 export const PHYSICS = {
-  runSpeed: 130,        // max horizontal speed
+  runSpeed: 140,        // max horizontal speed
   groundAccel: 2000,    // how fast we reach runSpeed on the ground
   groundDecel: 2600,    // how fast we stop on the ground
   airAccel: 1400,
   airDecel: 900,
   gravity: 950,
-  jumpVelocity: 340,    // initial upward speed (~60px / ~4 tiles max height)
-  jumpCutVelocity: 110, // upward speed is clamped to this when jump is released early
-  maxFallSpeed: 420,
+  jumpVelocity: 400,    // initial upward speed (~84px = ~2.6 tiles max height)
+  jumpCutVelocity: 200, // upward speed is clamped to this when jump is released early (min hop ~21px)
+  maxFallSpeed: 480,
   coyoteTime: 0.08,     // grace period to still jump after walking off a ledge
   jumpBuffer: 0.1,      // jump pressed slightly before landing still counts
   slideSpeed: 260,      // down + jump on solid ground

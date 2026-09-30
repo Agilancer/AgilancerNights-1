@@ -61,10 +61,11 @@ export function setupTouchControls(root, input) {
       if (!entry) continue;
       entry.x = t.clientX;
       entry.y = t.clientY;
-      // Pause shouldn't be triggered by sliding onto it.
+      // Pause / menu shouldn't be triggered by sliding onto them.
       if (entry.kind === 'button') {
         const a = buttonAt(entry.x, entry.y);
-        entry.action = a === 'pause' && entry.action !== 'pause' ? null : a;
+        const system = a === 'pause' || a === 'menu';
+        entry.action = system && entry.action !== a ? null : a;
       }
     }
     sync();

@@ -1,12 +1,14 @@
 import { TILE, PLAYER, PHYSICS as P, ANIM } from './config.js';
 import { SOLID, ONE_WAY } from './room.js';
 import { PLAYER_ATLAS, PLAYER_FRAMES as F } from './playerSprites.js';
+import { BASE_ATK } from './items.js';
 
 const approach = (v, target, amount) =>
   v < target ? Math.min(v + amount, target) : Math.max(v - amount, target);
 
-const atlas = new Image();
-atlas.src = PLAYER_ATLAS;
+// No Image in Node (the level checker reuses this physics code).
+const atlas = typeof Image !== 'undefined' ? new Image() : null;
+if (atlas) atlas.src = PLAYER_ATLAS;
 
 // Durations of the one-shot actions.
 const ATTACK_TIME = F.attack.length * ANIM.attack;
@@ -33,6 +35,21 @@ export class Player {
     this.stateTime = 0;
     this.airTime = 0;
     this.showHitbox = false;
+    this.onMover = null;    // moving platform we're standing on
+    this.weapon = null;     // item def of the equipped weapon (or null = fists)
+    this.attackBox = null;  // active attack hit box, for future enemies
+  }
+
+  get atk() {
+    return BASE_ATK + (this.weapon?.atk || 0);
+  }
+
+  // Call before update(): moving platforms carry whoever stands on them.
+  ride(room) {
+    const m = this.onMover;
+    if (!m) return;
+    if (m.dx) this.moveX(m.dx, room);
+    this.y = m.y - this.h;
   }
 
   // (x, y) = bottom-centre of where the player should stand.
@@ -125,6 +142,18 @@ export class Player {
 
     this.airTime = this.onGround ? 0 : this.airTime + dt;
     this.updateState(dt, dir, crouching, wasOnGround);
+    this.updateAttackBox();
+  }
+
+  updateAttackBox() {
+    this.attackBox = null;
+    if (this.state !== 'attack') return;
+    const t = this.stateTime;
+    if (t < ANIM.attack * 1 || t > ANIM.attack * 4) return;
+    const reach = this.weapon?.reach || 12;
+    const cx = this.x + this.w / 2;
+    const x = this.facing > 0 ? cx + 4 : cx - 4 - reach;
+    this.attackBox = { x, y: this.y + 2, w: reach, h: 22 };
   }
 
   updateState(dt, dir, crouching, wasOnGround) {
@@ -152,6 +181,13 @@ export class Player {
     const col = dx > 0 ? Math.floor((this.x + this.w - 0.001) / TILE) : Math.floor(this.x / TILE);
     for (let ty = top; ty <= bottom; ty++) {
       if (room.get(col, ty) === SOLID) {
+        // Step up onto a ledge that is only a few pixels higher than our feet
+        // (e.g. stepping off a moving platform that stopped slightly low).
+        const lift = this.y + this.h - ty * TILE;
+        if (ty === bottom && this.onGround && lift > 0 && lift <= 6 && !this.blockedAt(room, col, ty - 1, top - 1)) {
+          this.y -= lift;
+          return;
+        }
         this.x = dx > 0 ? col * TILE - this.w : (col + 1) * TILE;
         this.vx = 0;
         return;
@@ -159,24 +195,43 @@ export class Player {
     }
   }
 
+  blockedAt(room, col, fromRow, toRow) {
+    for (let ty = fromRow; ty >= toRow; ty--) if (room.get(col, ty) === SOLID) return true;
+    return false;
+  }
+
   moveY(dy, room) {
     const prevBottom = this.y + this.h;
     this.y += dy;
     this.onGround = false;
+    this.onMover = null;
     const left = Math.floor(this.x / TILE);
     const right = Math.floor((this.x + this.w - 0.001) / TILE);
     if (dy > 0) {
+      // Nearest surface we crossed this step: a tile or a moving platform.
+      let surface = Infinity, mover = null;
       const row = Math.floor((this.y + this.h - 0.001) / TILE);
       const rowTop = row * TILE;
       for (let tx = left; tx <= right; tx++) {
         const t = room.get(tx, row);
         const landOnOneWay = t === ONE_WAY && this.dropTimer <= 0 && prevBottom <= rowTop + 0.001;
-        if (t === SOLID || landOnOneWay) {
-          this.y = rowTop - this.h;
-          this.vy = 0;
-          this.onGround = true;
-          return;
+        if (t === SOLID || landOnOneWay) { surface = rowTop; break; }
+      }
+      if (this.dropTimer <= 0) {
+        for (const m of room.movers || []) {
+          if (this.x < m.x + m.w && this.x + this.w > m.x &&
+              prevBottom <= m.y + 0.5 && this.y + this.h >= m.y && m.y < surface) {
+            surface = m.y;
+            mover = m;
+          }
         }
+      }
+      if (surface !== Infinity) {
+        this.y = surface - this.h;
+        this.vy = 0;
+        this.onGround = true;
+        this.onMover = mover;
+        return;
       }
     } else if (dy < 0) {
       const row = Math.floor(this.y / TILE);
@@ -192,6 +247,7 @@ export class Player {
   }
 
   standingOnOneWayOnly(room) {
+    if (this.onMover) return true;
     const row = Math.floor((this.y + this.h) / TILE);
     const left = Math.floor(this.x / TILE);
     const right = Math.floor((this.x + this.w - 0.001) / TILE);
@@ -240,6 +296,7 @@ export class Player {
       ctx.translate(cx, by);
       if (this.facing < 0) ctx.scale(-1, 1); // frames face right; mirror for left
       ctx.drawImage(atlas, f.x, f.y, f.w, f.h, -f.ax, -f.ay, f.w, f.h);
+      if (this.state === 'attack' && this.weapon) this.drawSword(ctx);
       ctx.restore();
     }
 
@@ -249,6 +306,45 @@ export class Player {
       ctx.strokeStyle = 'rgba(60, 120, 255, 0.9)';
       ctx.lineWidth = 1;
       ctx.strokeRect(hx + 0.5, hy + 0.5, this.w - 1, this.h - 1);
+      const a = this.attackBox;
+      if (a) {
+        ctx.strokeStyle = 'rgba(255, 60, 60, 0.9)';
+        ctx.strokeRect(Math.round(a.x - cam.x) + 0.5, Math.round(a.y - cam.y) + 0.5, a.w - 1, a.h - 1);
+      }
     }
+  }
+
+  // Sword swing, drawn in the sprite's (right-facing) local space where
+  // (0, 0) is the hit box bottom-centre.
+  drawSword(ctx) {
+    const t = this.stateTime / (ANIM.attack * F.attack.length);
+    if (t > 0.85) return;
+    const k = Math.min(1, t / 0.6);
+    const ease = 1 - (1 - k) * (1 - k);
+    const a0 = -2.0, a1 = 0.35;             // radians: raised behind -> forward
+    const ang = a0 + (a1 - a0) * ease;
+    const hx = 7, hy = -19;                 // hand position
+    const len = (this.weapon.reach || 24) - 2;
+    // Slash trail.
+    if (k > 0.15) {
+      ctx.strokeStyle = 'rgba(220, 230, 255, 0.35)';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.arc(hx, hy, len - 3, Math.max(a0, ang - 1.4), ang);
+      ctx.stroke();
+    }
+    ctx.save();
+    ctx.translate(hx, hy);
+    ctx.rotate(ang);
+    ctx.fillStyle = '#6a3e1e';
+    ctx.fillRect(-4, -1, 4, 3);             // grip
+    ctx.fillStyle = '#f0c050';
+    ctx.fillRect(0, -3, 2, 7);              // cross-guard
+    ctx.fillStyle = '#aab4cc';
+    ctx.fillRect(2, -1, len - 4, 3);        // blade
+    ctx.fillStyle = '#f4f6ff';
+    ctx.fillRect(2, -1, len - 4, 1);        // edge highlight
+    ctx.fillRect(len - 2, 0, 2, 1);         // tip
+    ctx.restore();
   }
 }

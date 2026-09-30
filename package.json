@@ -1,0 +1,8 @@
+{
+  "name": "agilancer-nights",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check-rooms": "node tools/check_rooms.mjs"
+  }
+}

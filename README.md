@@ -24,33 +24,83 @@ Tip: "Add to Home Screen" in Safari gives a full-screen, no-browser-chrome view.
 | Attack | ATK | X / J |
 | Magic | MAGIC | C / K |
 | Pause | ❚❚ | Enter / Esc / P |
+| Equipment menu | MENU | I / M / Tab |
 | Crouch | Down | Down |
 | Slide (on stone floor) | Down + JUMP | Down + Space |
 | Drop through wooden platform | Down + JUMP | Down + Space |
 
-Tap the game screen to cycle the debug view: read-out → read-out + hit box → off.
+Tap the game screen to cycle the debug view: off → read-out → read-out + hit box.
+
+## The castle (so far)
+
+Seven rooms laid out on one world grid; walk (or jump / drop) through a gap in
+a room's outer wall to enter whichever room is on the other side.
+
+```
+                         [4 Lava Gallery]──[5 Ruined Chapel]
+               [3 Clock Tower]                    │
+[1 Entrance]──[2 Great Corridor]──🔒──[7 Sword    [6 Crypt Vault]
+                                        Sanctum]      (Iron Key)
+```
+
+The Great Corridor's far door is locked. Climb the tower, cross the lava on
+the moving platforms, descend the chapel to find the **Iron Key** in the
+vault, then backtrack to open the door and claim the **Short Sword**. Spikes and
+lava send you back to your last safe footing. Progress is saved automatically
+in the browser (MENU → New Game to start over).
+
+## Equipment menu
+
+MENU lists every item you've found and the equipment slots: right hand, left
+hand, spell, head, body, three charms and ten passive slots. Tap a slot then an
+item (or the other way round) to equip it; tap a filled slot for **Remove**.
+With a sword equipped, ATK swings it.
 
 ## Layout
 
 ```
-index.html            page + on-screen controls markup
-css/style.css         portrait layout, controls styling
-src/main.js           boot, fixed 60 Hz loop, rendering, pause
-src/config.js         resolution + all movement tuning values
+index.html            page, on-screen controls, menu markup
+css/style.css         portrait layout, controls and menu styling
+src/main.js           boot, fixed 60 Hz loop, rendering, overlays
+src/config.js         resolution, tile size, movement tuning
 src/input.js          unified input state (held / pressed / released) + keyboard
 src/touchControls.js  multi-touch D-pad and buttons
-src/room.js           tile map (text grid) and room drawing
-src/player.js         player physics, collision (21x32 hit box) and animation states
-src/playerSprites.js  generated frame data for assets/player.png
-assets/player.png     generated player atlas (game resolution)
-assets/source/        original, full-size sprite sheet
-tools/build_player_sprites.py  cuts the source sheet into the atlas
-src/camera.js         camera follow, clamped to room bounds
+src/world.js          current room, room transitions, hazards, pickups, doors, save
+src/rooms.js          the castle: room maps, decorations, items, moving platforms
+src/room.js           tile collision, themes, drawing, moving platforms
+src/player.js         player physics, collision, animation, sword swing
+src/items.js          item database, equipment slots, pixel icons
+src/menu.js           equipment / inventory screen
+src/assets.js         tile atlas loading + drawing
+src/tileIndex.js      generated: tile name -> atlas index
+src/playerSprites.js  generated: player frame data
+assets/               generated atlases (+ source/ originals)
+tools/                asset build scripts and level checkers
 ```
 
-Rooms are text grids in `src/room.js`: `#` solid, `=` one-way platform,
-`.` empty, `P` player spawn. Tiles are 16x16; the game renders at 320x240 and
-is scaled up to fit the screen width.
+## Editing rooms
+
+Rooms live in `src/rooms.js` as text grids of 32x32 tiles: `#` wall, `=` one-way
+platform, `^` spikes, `L` lava, `C` crate, `D` locked door, `.` empty. Each room
+has a world position (`x`, `y` in tiles); rooms that touch line up their wall
+gaps. Decorations use tile names from `src/tileIndex.js`.
+
+Physics limits to design around: a full jump rises ~2.6 tiles (so ledges up to
+2 tiles higher are reachable) and clears about 3-4 tiles of gap.
+
+After editing, check every route is still possible:
+
+```sh
+node tools/check_rooms.mjs          # all rooms (add a room id and --map to see reachable spots)
+node tools/bot_gallery.mjs          # plays the moving-platform room both ways
+```
+
+## Tiles
+
+`tools/build_tiles.py` cuts the two 50-tile sheets in `assets/source/` into
+`assets/tiles.png` (32px) and `assets/tiles_big.png` (64px, for 2x2 props), and
+makes the dark backdrop of prop tiles (banners, candles, platforms...)
+transparent.
 
 ## Player sprites
 
@@ -62,4 +112,5 @@ size (`SCALE` in the script) and writes `assets/player.png` +
 ```sh
 pip install pillow numpy scipy
 python3 tools/build_player_sprites.py
+python3 tools/build_tiles.py
 ```
