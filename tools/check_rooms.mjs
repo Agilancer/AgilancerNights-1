@@ -123,7 +123,7 @@ function explore(id, starts, flags = {}) {
 
 // Start points (tile x, surface row) for each way into a room, and what must be reachable.
 const CHECKS = [
-  { room: 'entrance', from: 'start', starts: [[3, 12]], need: ['right'] },
+  { room: 'entrance', from: 'start', starts: [[3, 12]], need: ['right', 'item:knife'] },
   { room: 'entrance', from: 'corridor', starts: [[38, 12]], need: [] },
   { room: 'corridor', from: 'entrance', starts: [[1, 8]], need: ['top', 'door'] },
   { room: 'corridor', from: 'tower', starts: [[29, 1]], need: ['left', 'door'] },

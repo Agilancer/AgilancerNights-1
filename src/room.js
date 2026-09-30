@@ -3,9 +3,10 @@ import { TILE_TOP } from './tileIndex.js';
 import { drawTile } from './assets.js';
 import { ITEMS, getIcon } from './items.js';
 
-export const EMPTY = 0;
-export const SOLID = 1;
-export const ONE_WAY = 2; // jump up through it, stand on it, down + jump to drop
+import { EMPTY, SOLID, ONE_WAY } from './tileTypes.js';
+import { Enemy } from './enemies.js';
+
+export { EMPTY, SOLID, ONE_WAY };
 
 // Map characters. `c` is collision, `kind` picks how it is drawn.
 const LEGEND = {
@@ -21,7 +22,7 @@ const LEGEND = {
 // Per-room tile choices. `wall` lists variants (first one most common).
 export const THEMES = {
   hall:    { wall: ['wall_1', 'wall_4', 'brick'], cap: 'plat_stone', oneway: 'plat_wood', bg: 'wall_4', shade: 0.55 },
-  stone:   { wall: ['brick', 'wall_1', 'brick_blood'], cap: 'plat_stone', oneway: 'plat_brick', bg: 'brick', shade: 0.55 },
+  stone:   { wall: ['brick', 'wall_1', 'wall_4'], cap: 'plat_stone', oneway: 'plat_brick', bg: 'brick', shade: 0.55 },
   tower:   { wall: ['wall_4', 'brick', 'wall_1'], cap: 'plat_stone', oneway: 'plat_wood', bg: 'brick', shade: 0.55 },
   lava:    { wall: ['wall_red', 'brick_blood', 'wall_red'], cap: 'plat_broken', oneway: 'plat_lava', bg: 'wall_red', shade: 0.66 },
   moss:    { wall: ['wall_2', 'brick_moss', 'wall_1'], cap: 'plat_vines', oneway: 'plat_vines', bg: 'brick_moss', shade: 0.6 },
@@ -93,8 +94,8 @@ export class Room {
         const i = ty * this.cols + tx;
         this.cells[i] = l.c;
         this.kinds[i] = l.kind || null;
-        if (ch === '^') this.hazards.push({ x: tx * TILE + 3, y: ty * TILE + 20, w: TILE - 6, h: 12 });
-        if (ch === 'L') this.hazards.push({ x: tx * TILE, y: ty * TILE + 12, w: TILE, h: 20 });
+        if (ch === '^') this.hazards.push({ x: tx * TILE + 3, y: ty * TILE + 20, w: TILE - 6, h: 12, dmg: 15 });
+        if (ch === 'L') this.hazards.push({ x: tx * TILE, y: ty * TILE + 12, w: TILE, h: 20, dmg: 30 });
         if (ch === 'D') this.doors.push({ tx, ty });
       });
     });
@@ -107,11 +108,37 @@ export class Room {
       };
       if (state.flags[this.door.flag]) this.openDoor();
     }
+    this.chains = this.findChains();
     this.movers = (def.movers || []).map((m) => new Mover(m));
+    // Enemies respawn every time the room is entered (as in SotN).
+    this.enemies = (def.enemies || []).map((e) => new Enemy(e));
     this.items = (def.items || [])
       .filter((it) => !state.collected[it.id])
       .map((it) => ({ ...it, px: it.x * TILE, py: it.y * TILE }));
     this.time = 0;
+  }
+
+  // One-way platforms that aren't built into a wall hang from chains: find
+  // each free-standing run and measure a chain from each end up to whatever
+  // is above (ceiling or another platform).
+  findChains() {
+    const out = [];
+    const c = (x, y) => this.get(x, y);
+    for (let ty = 0; ty < this.rows; ty++) {
+      for (let tx = 0; tx < this.cols; tx++) {
+        if (c(tx, ty) !== ONE_WAY || (tx > 0 && c(tx - 1, ty) === ONE_WAY)) continue;
+        let end = tx;
+        while (end + 1 < this.cols && c(end + 1, ty) === ONE_WAY) end++;
+        if (c(tx - 1, ty) === SOLID || c(end + 1, ty) === SOLID) continue; // bracketed to a wall
+        if (ty === this.rows - 1 || ty === 0) continue;                    // floor / ceiling gaps
+        for (const [col, px] of [[tx, tx * TILE + 5], [end, end * TILE + TILE - 6]]) {
+          let top = ty - 1;
+          while (top >= 0 && c(col, top) === EMPTY) top--;
+          out.push({ x: px, y0: (top + 1) * TILE, y1: ty * TILE + 2 });
+        }
+      }
+    }
+    return out;
   }
 
   openDoor() {
@@ -139,11 +166,12 @@ export class Room {
     return this.kinds[ty * this.cols + tx];
   }
 
+  // The hazard (spikes / lava) overlapping this box, or null.
   touchesHazard(x, y, w, h) {
     for (const z of this.hazards) {
-      if (x < z.x + z.w && x + w > z.x && y < z.y + z.h && y + h > z.y) return true;
+      if (x < z.x + z.w && x + w > z.x && y < z.y + z.h && y + h > z.y) return z;
     }
-    return false;
+    return null;
   }
 
   update(dt) {
@@ -181,6 +209,20 @@ export class Room {
         ctx.fillRect(gx - r, gy - r, r * 2, r * 2);
       }
       drawTile(ctx, d.t, dx, dy, s);
+    }
+
+    // 3a. Chains holding up free-standing platforms.
+    for (const ch of this.chains) {
+      const x = ch.x - cam.x;
+      if (x < -4 || x > cam.w + 4) continue;
+      for (let y = ch.y0, i = 0; y < ch.y1; y += 4, i++) {
+        const sy = y - cam.y;
+        if (sy < -6 || sy > cam.h) continue;
+        ctx.fillStyle = '#2a2a36';
+        if (i % 2) ctx.fillRect(x - 1, sy, 3, 5); else ctx.fillRect(x - 2, sy + 1, 5, 3);
+        ctx.fillStyle = i % 2 ? '#8c8ca4' : '#6a6a80';
+        if (i % 2) ctx.fillRect(x, sy + 1, 1, 3); else ctx.fillRect(x - 1, sy + 2, 3, 1);
+      }
     }
 
     // 3. Tiles.
@@ -228,6 +270,13 @@ export class Room {
       for (let i = 0; i < n; i++) {
         drawTile(ctx, 'mover', Math.round(m.x - cam.x) + i * TILE, Math.round(m.y - cam.y) - (TILE_TOP.mover || 0));
       }
+    }
+
+    // Outside a room narrower than the screen: black.
+    ctx.fillStyle = '#000';
+    if (cam.x < 0) {
+      ctx.fillRect(0, 0, -cam.x, cam.h);
+      ctx.fillRect(this.width - cam.x, 0, cam.w, cam.h);
     }
 
     // 5. Items on pedestals.

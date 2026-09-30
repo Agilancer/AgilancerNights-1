@@ -9,6 +9,7 @@ import { Camera } from '../src/camera.js';
 const player = new Player();
 const world = new World(player, new Camera(320, 240));
 world.enter('gallery', 2 * TILE + 16, 4 * TILE);
+world.room.enemies = []; // this bot tests the platforms, not the fighting
 let frames = 0, deaths = 0;
 
 function tick(dir = 0, jump = false, press = false, down = false) {
@@ -59,6 +60,7 @@ const forward = world.room.id === 'chapel' && deaths === 0;
 
 // ---- right to left
 world.enter('gallery', 41 * TILE + 16, 4 * TILE); deaths = 0;
+world.room.enemies = [];
 waitUntil(at(3, 1)); walk(-1, onM(3)); log('back on mover 4');
 waitUntil(at(3, 0)); walk(-1, onStatic); log('pillar C');
 waitUntil(at(2, 1)); hop(-1, onM(2), 30); log('on mover 3');

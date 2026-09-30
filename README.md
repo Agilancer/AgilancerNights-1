@@ -1,6 +1,6 @@
 # Agilancer Nights
 
-A Symphony of the Night–style side-scrolling action RPG for iOS Safari (portrait).
+A Symphony of the Night–style side-scrolling action RPG for iOS Safari, played in **landscape** with see-through touch controls over the game.
 
 ## Running
 
@@ -29,7 +29,7 @@ Tip: "Add to Home Screen" in Safari gives a full-screen, no-browser-chrome view.
 | Slide (on stone floor) | Down + JUMP | Down + Space |
 | Drop through wooden platform | Down + JUMP | Down + Space |
 
-Tap the game screen to cycle the debug view: off → read-out → read-out + hit box.
+Tap the HP/MP bars (or press `) to cycle the debug view: off → read-out → read-out + hit boxes.
 
 ## The castle (so far)
 
@@ -49,12 +49,23 @@ vault, then backtrack to open the door and claim the **Short Sword**. Spikes and
 lava send you back to your last safe footing. Progress is saved automatically
 in the browser (MENU → New Game to start over).
 
-## Equipment menu
+## Combat and stats
 
-MENU lists every item you've found and the equipment slots: right hand, left
-hand, spell, head, body, three charms and ten passive slots. Tap a slot then an
-item (or the other way round) to equip it; tap a filled slot for **Remove**.
-With a sword equipped, ATK swings it.
+- **HP / MP / XP** bars sit top-left with your level. You start with 100 HP and 100 MP; MP refills slowly.
+- **Weapons:** a **Knife** waits on a pedestal next to where you start; equip it from MENU. The
+  Short Sword is behind the locked door. Your weapon's hit box only exists during the swing.
+- **Magic:** you begin with the **Spirit Bolt** spell equipped (8 MP, fires straight ahead).
+- **Enemies** (20 types in `src/enemies.js`) walk, attack and die with their own animations.
+  Melee enemies hurt you only when their weapon connects (plus a little for bumping into them);
+  ranged enemies fire fixed patterns in the direction they face — arcing arrows and webs,
+  wavy orbs, 3-way spreads, bouncing fireballs, radial rings — never aimed straight at you.
+  Enemies respawn when you re-enter a room.
+- **XP and levels:** kills give XP. Each level adds 15% weapon damage (10% spell), +12 max HP and
+  +6 max MP, and refills both.
+- Spikes and lava hurt and return you to safe footing. At 0 HP you revive at the last doorway
+  you came through, fully healed, keeping your XP and items.
+
+## Equipment menu
 
 ## Layout
 
@@ -68,7 +79,10 @@ src/touchControls.js  multi-touch D-pad and buttons
 src/world.js          current room, room transitions, hazards, pickups, doors, save
 src/rooms.js          the castle: room maps, decorations, items, moving platforms
 src/room.js           tile collision, themes, drawing, moving platforms
-src/player.js         player physics, collision, animation, sword swing
+src/player.js         player physics, collision, animation, stats, sword swing
+src/enemies.js        enemy types, AI, weapon hit boxes, projectile patterns
+src/enemySprites.js   generated: enemy frame data
+src/tileTypes.js      collision constants
 src/items.js          item database, equipment slots, pixel icons
 src/menu.js           equipment / inventory screen
 src/assets.js         tile atlas loading + drawing
@@ -93,7 +107,11 @@ After editing, check every route is still possible:
 ```sh
 node tools/check_rooms.mjs          # all rooms (add a room id and --map to see reachable spots)
 node tools/bot_gallery.mjs          # plays the moving-platform room both ways
+node tools/lint_rooms.mjs           # floor props on floors, hanging props under ceilings, enemies on ground
 ```
+
+Free-standing one-way platforms (not built into a wall) are drawn hanging from
+chains up to the ceiling automatically.
 
 ## Tiles
 
@@ -113,4 +131,5 @@ size (`SCALE` in the script) and writes `assets/player.png` +
 pip install pillow numpy scipy
 python3 tools/build_player_sprites.py
 python3 tools/build_tiles.py
+python3 tools/build_enemy_sprites.py   # --debug writes frame boxes over the sheets
 ```

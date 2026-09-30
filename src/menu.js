@@ -1,4 +1,4 @@
-import { ITEMS, SLOTS, PASSIVE_SLOTS, ALL_SLOTS, BASE_ATK, getIcon } from './items.js';
+import { ITEMS, SLOTS, PASSIVE_SLOTS, ALL_SLOTS, getIcon, xpToNext, weaponDamage, spellDamage } from './items.js';
 
 const TYPE_LABEL = {
   weapon: 'Weapon', spell: 'Spell', head: 'Head armor', body: 'Chest armor',
@@ -85,6 +85,14 @@ export class Menu {
     this.render();
   }
 
+  // e.g. "  (ATK 13)" at the current level.
+  powerText(def) {
+    const lv = this.world.player.level;
+    if (def.type === 'weapon') return `  (ATK ${weaponDamage(def, lv)})`;
+    if (def.type === 'spell') return `  (DMG ${spellDamage(def, lv)}, ${def.mp} MP)`;
+    return '';
+  }
+
   slotButton(slot, small) {
     const st = this.world.state;
     const itemId = st.equip[slot.id];
@@ -110,10 +118,12 @@ export class Menu {
     const eq = st.equip;
 
     // Stats.
+    const pl = this.world.player;
     const stats = this.q('.menu-stats');
     stats.replaceChildren();
-    const handAtk = (id) => BASE_ATK + (eq[id] ? ITEMS[eq[id]].atk || 0 : 0);
-    for (const [k, v] of [['ATK', this.world.player.atk], ['R', handAtk('rightHand')], ['L', handAtk('leftHand')], ['DEF', 0]]) {
+    const toNext = xpToNext(pl.level) - pl.xp;
+    for (const [k, v] of [['LV', pl.level], ['HP', `${Math.ceil(pl.hp)}/${pl.maxHp}`], ['MP', `${Math.floor(pl.mp)}/${pl.maxMp}`],
+      ['ATK', pl.atk], ['DEF', 0], ['NEXT', `${toNext} XP`]]) {
       const s = el('div', 'stat');
       s.append(el('span', 'stat-k', k), el('span', 'stat-v', String(v)));
       stats.append(s);
@@ -149,7 +159,7 @@ export class Menu {
     d.replaceChildren();
     if (this.selItem) {
       const def = ITEMS[this.selItem];
-      d.append(el('div', 'detail-title', def.name), el('div', 'detail-text', def.desc));
+      d.append(el('div', 'detail-title', def.name + this.powerText(def)), el('div', 'detail-text', def.desc));
       const can = ALL_SLOTS.some((s) => this.fits(this.selItem, s.id));
       d.append(el('div', 'detail-hint', can ? 'Now tap a highlighted slot to equip it.' : 'This item cannot be equipped.'));
     } else if (this.selSlot) {

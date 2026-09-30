@@ -4,6 +4,8 @@
 // outer wall enters whichever room occupies that spot. decor: {t: tile name, x, y, s: size in tiles}.
 // items: {id, item, x, y} with y = the floor row the pedestal stands on.
 // movers: moving platforms {x, y, w, dx, dy, period, phase} (tiles / seconds).
+// enemies: {t: type from src/enemies.js, x, y} with y = the floor row they stand on
+//   (flyers / ghosts: the row they hover in). They respawn whenever you re-enter.
 
 export const START = {"room": "entrance", "x": 3, "y": 12};
 
@@ -37,15 +39,23 @@ export const ROOMS = {
       {t: 'torch', x: 7, y: 9},
       {t: 'torch', x: 20, y: 9},
       {t: 'torch', x: 32, y: 8},
-      {t: 'statue', x: 1, y: 10},
+      {t: 'statue', x: 1, y: 11},
       {t: 'candelabra', x: 37, y: 11},
       {t: 'gargoyle', x: 10, y: 5},
       {t: 'gargoyle', x: 13, y: 5},
       {t: 'curtain', x: 1, y: 2},
       {t: 'curtain', x: 38, y: 2},
     ],
-    items: [],
+    items: [
+      {id: 'entrance_knife', item: 'knife', x: 5, y: 12},
+    ],
     movers: [],
+    enemies: [
+      {t: 'zombie', x: 7, y: 12},
+      {t: 'skeleton', x: 20, y: 12},
+      {t: 'skeleton_archer', x: 32, y: 12},
+      {t: 'skeleton', x: 37, y: 12},
+    ],
   },
   corridor: {
     name: "Great Corridor", theme: 'stone', x: 40, y: 14,
@@ -85,6 +95,14 @@ export const ROOMS = {
     ],
     items: [],
     movers: [],
+    enemies: [
+      {t: 'goblin', x: 3, y: 8},
+      {t: 'wolf', x: 24, y: 8},
+      {t: 'troll', x: 31, y: 8},
+      {t: 'skeleton_archer', x: 40, y: 5},
+      {t: 'goblin_shaman', x: 50, y: 8},
+      {t: 'skeleton', x: 57, y: 8},
+    ],
   },
   sanctum: {
     name: "Sword Sanctum", theme: 'shrine', x: 100, y: 14,
@@ -115,6 +133,9 @@ export const ROOMS = {
       {id: 'sanctum_sword', item: 'short_sword', x: 7, y: 7},
     ],
     movers: [],
+    enemies: [
+      {t: 'evil_knight', x: 12, y: 8},
+    ],
   },
   tower: {
     name: "Clock Tower", theme: 'tower', x: 62, y: -16,
@@ -151,14 +172,11 @@ export const ROOMS = {
       '######===#########',
     ],
     decor: [
-      {t: 'clock', x: 7, y: 1, s: 2},
+      {t: 'clock', x: 15, y: 27, s: 2},
       {t: 'window_tall', x: 2, y: 3, s: 2},
       {t: 'window_tall', x: 14, y: 7, s: 2},
-      {t: 'window_blue', x: 6, y: 17, s: 2},
+      {t: 'window_blue', x: 6, y: 18, s: 2},
       {t: 'window_tall', x: 12, y: 23, s: 2},
-      {t: 'chains', x: 3, y: 5},
-      {t: 'chains', x: 15, y: 11},
-      {t: 'chains', x: 7, y: 20},
       {t: 'lantern', x: 16, y: 6},
       {t: 'lantern', x: 1, y: 23},
       {t: 'torch', x: 8, y: 26},
@@ -166,10 +184,17 @@ export const ROOMS = {
       {t: 'torch', x: 2, y: 12},
       {t: 'banner_lion', x: 13, y: 1, s: 2},
       {t: 'gargoyle', x: 16, y: 18},
-      {t: 'chandelier', x: 9, y: 12, s: 2},
+      {t: 'chandelier', x: 8, y: 1, s: 2},
     ],
     items: [],
     movers: [],
+    enemies: [
+      {t: 'orc', x: 13, y: 29},
+      {t: 'goblin', x: 5, y: 17},
+      {t: 'harpy', x: 13, y: 22},
+      {t: 'harpy', x: 6, y: 10},
+      {t: 'banshee', x: 12, y: 4},
+    ],
   },
   gallery: {
     name: "Lava Gallery", theme: 'lava', x: 80, y: -16,
@@ -210,6 +235,11 @@ export const ROOMS = {
       {x: 24, y: 7, w: 2, dx: 5, period: 4.5, phase: 0.25},
       {x: 33, y: 9, w: 2, dx: 5, dy: -5, period: 6},
     ],
+    enemies: [
+      {t: 'wraith', x: 18, y: 4},
+      {t: 'dark_wizard', x: 22, y: 6},
+      {t: 'harpy', x: 28, y: 5},
+    ],
   },
   chapel: {
     name: "Ruined Chapel", theme: 'moss', x: 124, y: -20,
@@ -243,13 +273,12 @@ export const ROOMS = {
       {t: 'window_blue', x: 8, y: 2, s: 2},
       {t: 'window_cross', x: 14, y: 1, s: 2},
       {t: 'window_blue', x: 20, y: 2, s: 2},
-      {t: 'statue_alcove', x: 25, y: 4, s: 2},
-      {t: 'coffin_alcove', x: 26, y: 19},
+      {t: 'statue_alcove', x: 19, y: 6, s: 2},
+      {t: 'coffin_alcove', x: 27, y: 20},
       {t: 'curtain_torn', x: 5, y: 1},
       {t: 'curtain_torn', x: 24, y: 1},
       {t: 'candelabra', x: 3, y: 7},
       {t: 'gargoyle_2', x: 14, y: 16},
-      {t: 'chains', x: 18, y: 11},
       {t: 'torch', x: 10, y: 13},
       {t: 'torch', x: 26, y: 15},
       {t: 'torch', x: 2, y: 4},
@@ -257,6 +286,13 @@ export const ROOMS = {
     ],
     items: [],
     movers: [],
+    enemies: [
+      {t: 'lich', x: 24, y: 10},
+      {t: 'zombie', x: 13, y: 17},
+      {t: 'wraith', x: 15, y: 5},
+      {t: 'slime', x: 3, y: 18},
+      {t: 'goblin_shaman', x: 28, y: 12},
+    ],
   },
   vault: {
     name: "Crypt Vault", theme: 'crypt', x: 124, y: 4,
@@ -275,8 +311,7 @@ export const ROOMS = {
       '##############################',
     ],
     decor: [
-      {t: 'coffin_alcove', x: 2, y: 2, s: 2},
-      {t: 'statue_alcove', x: 8, y: 2, s: 2},
+      {t: 'coffin_alcove', x: 25, y: 8, s: 2},
       {t: 'torch', x: 22, y: 6},
       {t: 'torch', x: 28, y: 4},
       {t: 'chains', x: 14, y: 5},
@@ -285,11 +320,18 @@ export const ROOMS = {
       {t: 'candelabra', x: 4, y: 8},
       {t: 'candelabra', x: 1, y: 8},
       {t: 'sack', x: 28, y: 9},
-      {t: 'barrel', x: 26, y: 9},
+      {t: 'barrel', x: 27, y: 9},
     ],
     items: [
       {id: 'vault_key', item: 'iron_key', x: 2, y: 9},
     ],
     movers: [],
+    enemies: [
+      {t: 'spider', x: 26, y: 10},
+      {t: 'giant_spider', x: 23, y: 10},
+      {t: 'slime', x: 11, y: 9},
+      {t: 'banshee', x: 6, y: 4},
+      {t: 'orc_brute', x: 3, y: 9},
+    ],
   },
 };

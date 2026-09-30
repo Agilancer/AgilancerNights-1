@@ -1,9 +1,11 @@
 // Global tuning values. Units are pixels and seconds unless noted.
 
 // Internal (virtual) resolution of the game screen. Everything is rendered at
-// this size and then scaled up with nearest-neighbour filtering.
-export const VIEW_W = 320;
+// this size and then scaled up with nearest-neighbour filtering. The height is
+// fixed; the width follows the screen's aspect ratio (landscape) within limits.
 export const VIEW_H = 240;
+export const VIEW_W = 320;       // default / minimum width
+export const VIEW_W_MAX = 568;
 
 export const TILE = 32;
 

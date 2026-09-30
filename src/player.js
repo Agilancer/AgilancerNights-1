@@ -1,7 +1,7 @@
 import { TILE, PLAYER, PHYSICS as P, ANIM } from './config.js';
 import { SOLID, ONE_WAY } from './room.js';
 import { PLAYER_ATLAS, PLAYER_FRAMES as F } from './playerSprites.js';
-import { BASE_ATK } from './items.js';
+import { weaponDamage } from './items.js';
 
 const approach = (v, target, amount) =>
   v < target ? Math.min(v + amount, target) : Math.max(v - amount, target);
@@ -37,11 +37,33 @@ export class Player {
     this.showHitbox = false;
     this.onMover = null;    // moving platform we're standing on
     this.weapon = null;     // item def of the equipped weapon (or null = fists)
-    this.attackBox = null;  // active attack hit box, for future enemies
+    this.attackBox = null;  // active attack hit box
+    this.swingId = 0;       // increments every swing, so one swing hits an enemy once
+    this.canCast = null;    // world hook: may we start casting right now?
+    // Stats.
+    this.level = 1;
+    this.xp = 0;
+    this.maxHp = 100;
+    this.hp = 100;
+    this.maxMp = 100;
+    this.mp = 100;
+    this.invuln = 0;        // seconds of invulnerability left after a hit
   }
 
   get atk() {
-    return BASE_ATK + (this.weapon?.atk || 0);
+    return weaponDamage(this.weapon, this.level);
+  }
+
+  // Knocked back by a hit from something at x = fromX.
+  knockback(fromX) {
+    const dir = this.x + this.w / 2 < fromX ? -1 : 1;
+    this.setState('hurt');
+    this.vx = dir * 150;
+    this.vy = -190;
+    this.onGround = false;
+    this.onMover = null;
+    this.jumping = false;
+    this.invuln = 1.1;
   }
 
   // Call before update(): moving platforms carry whoever stands on them.
@@ -72,21 +94,29 @@ export class Player {
 
   update(dt, input, room) {
     this.stateTime += dt;
+    this.invuln = Math.max(0, this.invuln - dt);
     const wasOnGround = this.onGround;
+    const hurt = this.state === 'hurt';
 
     // --- Actions (attack / magic) ---
-    if (!this.busy && this.state !== 'slide') {
-      if (input.pressed.attack) this.setState('attack');
-      else if (input.pressed.magic) this.setState('cast');
+    if (!this.busy && this.state !== 'slide' && !hurt) {
+      if (input.pressed.attack) {
+        this.setState('attack');
+        this.swingId++;
+      } else if (input.pressed.magic && (!this.canCast || this.canCast())) {
+        this.setState('cast');
+      }
     }
 
     // --- Horizontal movement ---
-    const dir = (input.held.right ? 1 : 0) - (input.held.left ? 1 : 0);
-    const crouching = this.onGround && input.held.down && !this.busy && this.state !== 'slide';
+    const dir = hurt ? 0 : (input.held.right ? 1 : 0) - (input.held.left ? 1 : 0);
+    const crouching = this.onGround && input.held.down && !this.busy && this.state !== 'slide' && !hurt;
     // Like SotN: you can't turn around mid-attack or mid-slide.
     if (dir !== 0 && !this.busy && this.state !== 'slide') this.facing = dir;
 
-    if (this.state === 'slide') {
+    if (hurt) {
+      this.vx = approach(this.vx, 0, 260 * dt);
+    } else if (this.state === 'slide') {
       const t = Math.min(this.stateTime / P.slideTime, 1);
       this.vx = this.facing * P.slideSpeed * (1 - t * t);
     } else {
@@ -105,8 +135,8 @@ export class Player {
     this.coyote = this.onGround ? P.coyoteTime : Math.max(0, this.coyote - dt);
     this.dropTimer = Math.max(0, this.dropTimer - dt);
 
-    const canJump = !(this.busy && this.onGround);
-    if (this.jumpBuffer > 0 && this.onGround && input.held.down && this.state !== 'slide' && !this.busy) {
+    const canJump = !(this.busy && this.onGround) && !hurt;
+    if (this.jumpBuffer > 0 && this.onGround && input.held.down && this.state !== 'slide' && !this.busy && !hurt) {
       this.jumpBuffer = 0;
       if (this.standingOnOneWayOnly(room)) {
         // Down + jump on a one-way platform drops through it.
@@ -158,7 +188,9 @@ export class Player {
 
   updateState(dt, dir, crouching, wasOnGround) {
     const s = this.state;
-    if (s === 'attack' || s === 'cast') {
+    if (s === 'hurt') {
+      if (this.stateTime < 0.35) return;
+    } else if (s === 'attack' || s === 'cast') {
       if (this.stateTime < (s === 'attack' ? ATTACK_TIME : CAST_TIME)) return;
     } else if (s === 'slide') {
       if (this.stateTime < P.slideTime && this.onGround && this.vx !== 0) return;
@@ -273,6 +305,7 @@ export class Player {
       case 'crouch': return pick(F.duck, ANIM.duck);
       case 'slide': return pick(F.slide, P.slideTime / F.slide.length);
       case 'land': return F.jump[5];
+      case 'hurt': return F.jump[5];
       case 'air': {
         const v = this.vy;
         if (this.jumping && this.airTime < 0.05) return F.jump[0]; // take-off
@@ -290,7 +323,9 @@ export class Player {
     const cx = Math.round(this.x + this.w / 2 - cam.x);
     const by = Math.round(this.y + this.h - cam.y);
 
-    if (atlas.complete && atlas.naturalWidth) {
+    // Blink while invulnerable.
+    const blink = this.invuln > 0 && Math.floor(this.invuln * 20) % 2 === 0;
+    if (atlas && atlas.complete && atlas.naturalWidth && !blink) {
       const f = this.currentFrame();
       ctx.save();
       ctx.translate(cx, by);
